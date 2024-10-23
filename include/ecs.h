@@ -178,6 +178,8 @@ public:
         }
     }
 
+    // Use this if you wish to set a specific initial capacity for
+    // the ComponentStorage
     template <class T> void register_component(size_t init_cap = 32) {
         ECS_ASSERT(!component_initialized<T>() &&
                    "Component already initialized");
@@ -197,20 +199,32 @@ public:
     }
 
     entity create() {
+        entity new_ent;
+
         if (!free_ids_.empty()) {
-            entity front = free_ids_.front();
+            new_ent = free_ids_.front();
             free_ids_.pop_front();
-            return front;
+        } else {
+            new_ent = counter_++;
         }
 
-        return counter_++;
+        entities_components_.emplace();
+        return new_ent;
     }
 
     void destroy(entity ent) {
-        auto &comps = entities_components_[ent];
+        auto it = entities_components_.find(ent);
+
+        if (it == entities_components_.end()) {
+            return;
+        }
+
+        auto &comps = it->second;
         for (component_id comp : comps) {
             storage_mapping_[comp].remove_component(ent);
         }
+
+        entities_components_.erase(it);
 
         // We may reuse this id, so clear everything.
         comps.clear();
@@ -254,8 +268,13 @@ private:
     }
 
     template <class T> ComponentStorage &get_component_storage() {
-        ECS_ASSERT(component_initialized<T>() && "Component not registered!");
-        return storage_mapping_[ComponentID<T>::get()];
+        auto it = storage_mapping_.find(ComponentID<T>::get());
+        if (it == storage_mapping_.end()) {
+            register_component<T>();
+            return storage_mapping_[ComponentID<T>::get()];
+        }
+
+        return it->second;
     }
 };
 

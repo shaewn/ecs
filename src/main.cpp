@@ -5,13 +5,11 @@ struct TransformComponent {
     int val = 10;
 
     TransformComponent() {
-        // Working.
-        //std::cout << "Initializer!\n";
+        std::cout << "Initializer!\n";
     }
 
     ~TransformComponent() {
-        // Working.
-        //std::cout << "Deleter!\n";
+        std::cout << "Deleter!\n";
     }
 };
 
@@ -24,9 +22,6 @@ int main(int argc, char** argv){
     srand(time(nullptr));
 
     Registry reg;
-    reg.register_component<TransformComponent>();
-    // Make sure that the registry works when using more than one component.
-    reg.register_component<FooComponent>();
 
     entity ents[100];
 
