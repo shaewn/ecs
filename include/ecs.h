@@ -5,6 +5,7 @@
 #include <deque>
 #include <unordered_map>
 #include <unordered_set>
+#include <functional>
 
 #ifndef ECS_ASSERT
 #define ECS_ASSERT(...) assert(__VA_ARGS__)
@@ -104,11 +105,11 @@ class Registry {
         }
     };
 
-    template <class T> struct SingleComponentView {
-        struct Iterator {
-            T *comps = nullptr;
-            entity *ents = nullptr;
-            size_t index = 0;
+    template <class T> class SingleComponentView {
+        class Iterator {
+        public:
+            Iterator(T *comps, entity *ents, size_t index)
+                : comps(comps), ents(ents), index(index) {}
 
             bool operator==(const Iterator &other) const {
                 return comps == other.comps && ents == other.ents &&
@@ -124,26 +125,97 @@ class Registry {
             std::pair<entity, T &> operator*() {
                 return std::pair<entity, T &>(ents[index], comps[index]);
             }
+
+        private:
+            T *comps = nullptr;
+            entity *ents = nullptr;
+            size_t index = 0;
         };
 
+    public:
         typedef Iterator iterator;
 
-        Registry &reg;
+        SingleComponentView(Registry &reg) : reg(reg) {}
 
         iterator begin() {
             auto &storage = reg.get_component_storage<T>();
-            return Iterator{(T *)storage.component_bytes.data(),
-                            storage.assoc_entities.data(), 0};
+            return iterator((T *)storage.component_bytes.data(),
+                            storage.assoc_entities.data(), 0);
         }
 
         iterator end() {
             auto &storage = reg.get_component_storage<T>();
-            return Iterator{(T *)storage.component_bytes.data(),
-                            storage.assoc_entities.data(), storage.size()};
+            return iterator((T *)storage.component_bytes.data(),
+                            storage.assoc_entities.data(), storage.size());
         }
+
+    private:
+        Registry &reg;
     };
 
-    template <class... Types> struct MultiView {};
+    template <class... Components> class MultiComponentView {
+        class Iterator {
+        public:
+            Iterator(Registry &reg, entity *ents, size_t index,
+                     size_t end_index)
+                : reg(reg), ents(ents), index(index), end_index(end_index) {}
+
+            bool operator==(const Iterator &other) {
+                return ents == other.ents && index == other.index;
+            }
+
+            bool operator!=(const Iterator &other) { return !(*this == other); }
+
+            void operator++() {
+                do {
+                    index++;
+                } while (index != end_index &&
+                         !has_all_components(ents[index]));
+            }
+
+            std::tuple<entity, Components &...> operator*() {
+                return std::tuple<entity, Components &...>(ents[index], *reg.find_component<Components>(ents[index])...);
+            }
+
+        private:
+            Registry &reg;
+            entity *ents = nullptr;
+            size_t index = 0;
+            size_t end_index = 0;
+
+            bool has_all_components(entity ent) {
+                return (reg.has_component<Components>(ents[index]) && ...);
+            }
+        };
+
+    public:
+        typedef Iterator iterator;
+
+        MultiComponentView(Registry &reg) : reg(reg) {}
+
+        iterator begin() {
+            auto &smallest_storage = find_smallest_storage();
+            return iterator(reg, smallest_storage.assoc_entities.data(), 0,
+                            smallest_storage.size());
+        }
+
+        iterator end() {
+            auto &smallest_storage = find_smallest_storage();
+            return iterator(reg, smallest_storage.assoc_entities.data(),
+                            smallest_storage.size(), smallest_storage.size());
+        }
+
+    private:
+        Registry &reg;
+
+        ComponentStorage &find_smallest_storage() {
+            return std::min(
+                {std::ref(reg.get_component_storage<Components>())...},
+                [](auto &a, auto &b) {
+                    return a.get().size() < b.get().size();
+                });
+        }
+    };
 
 public:
     ~Registry() {
@@ -211,7 +283,14 @@ public:
         return get_component_storage<T>().has_component(ent);
     }
 
-    template <class T> SingleComponentView<T> view() { return SingleComponentView<T>{*this}; }
+    template <class T> SingleComponentView<T> view() {
+        return SingleComponentView<T>(*this);
+    }
+
+    template <class... Components>
+    MultiComponentView<Components...> multi_view() {
+        return MultiComponentView<Components...>(*this);
+    }
 
 private:
     std::unordered_map<component_id, ComponentStorage> storage_mapping_;

@@ -33,12 +33,18 @@ int main(int argc, char** argv){
         ents[i] = reg.create();
         auto &tc = reg.emplace_component<TransformComponent>(ents[i]);
         tc.val = i;
+
+        if (rand() % 10 == 0) {
+            auto &fc = reg.emplace_component<FooComponent>(ents[i]);
+            fc.data = tc.val * M_PI;
+        }
     }
 
     auto view = reg.view<TransformComponent>();
 
     for (auto [ent, tc] : view) {
         std::cout << "ent: " << ent << ", tc.val: " << tc.val << '\n';
+        std::cout << typeid(tc).name() << '\n';
         tc.val *= 2;
     }
 
@@ -58,4 +64,14 @@ int main(int argc, char** argv){
 
     entity new_ent2 = reg.create();
     std::cout << "New entity created with id: " << new_ent2 << '\n';
+
+    reg.emplace_component<TransformComponent>(new_ent2);
+    reg.emplace_component<FooComponent>(new_ent2);
+
+    auto multi_view = reg.multi_view<TransformComponent, FooComponent>();
+
+    for (auto [ent, tc, fc] : multi_view) {
+        std::cout << "ent: " << ent << ", tc.val: " << tc.val << ", fc.data: " << fc.data << '\n';
+        std::cout << typeid(tc).name() << ", " << typeid(fc).name() << '\n';
+    }
 }
