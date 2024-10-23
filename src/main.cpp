@@ -21,6 +21,7 @@ struct FooComponent {
 
 int main(int argc, char** argv){
     using namespace ecs;
+    srand(time(nullptr));
 
     Registry reg;
     reg.register_component<TransformComponent>();
@@ -44,7 +45,6 @@ int main(int argc, char** argv){
 
     for (auto [ent, tc] : view) {
         std::cout << "ent: " << ent << ", tc.val: " << tc.val << '\n';
-        std::cout << typeid(tc).name() << '\n';
         tc.val *= 2;
     }
 
@@ -68,10 +68,9 @@ int main(int argc, char** argv){
     reg.emplace_component<TransformComponent>(new_ent2);
     reg.emplace_component<FooComponent>(new_ent2);
 
-    auto multi_view = reg.multi_view<TransformComponent, FooComponent>();
+    auto multi_view = reg.view<TransformComponent, FooComponent>();
 
     for (auto [ent, tc, fc] : multi_view) {
         std::cout << "ent: " << ent << ", tc.val: " << tc.val << ", fc.data: " << fc.data << '\n';
-        std::cout << typeid(tc).name() << ", " << typeid(fc).name() << '\n';
     }
 }
