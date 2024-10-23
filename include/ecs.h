@@ -196,6 +196,8 @@ public:
         };
 
         storage.component_bytes.reserve(init_cap * storage.component_size);
+        storage.assoc_entities.reserve(init_cap);
+        storage.indices.reserve(init_cap);
     }
 
     entity create() {
