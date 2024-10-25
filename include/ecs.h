@@ -23,61 +23,61 @@ class Registry {
         public:
             Iterator(Registry &reg, entity *ents, size_t index,
                      size_t end_index)
-                : reg(reg), ents(ents), index(index), end_index(end_index) {}
+                : reg_(reg), ents_(ents), index_(index), end_index_(end_index) {}
 
             bool operator==(const Iterator &other) {
-                return ents == other.ents && index == other.index;
+                return ents_ == other.ents_ && index_ == other.index_;
             }
 
             bool operator!=(const Iterator &other) { return !(*this == other); }
 
             void operator++() {
                 do {
-                    index++;
-                } while (index != end_index &&
-                         !has_all_components(ents[index]));
+                    index_++;
+                } while (index_ != end_index_ &&
+                         !has_all_components(ents_[index_]));
             }
 
             std::tuple<entity, Components &...> operator*() {
                 return std::tuple<entity, Components &...>(
-                    ents[index],
-                    *reg.find_component<Components>(ents[index])...);
+                    ents_[index_],
+                    *reg_.find_component<Components>(ents_[index_])...);
             }
 
         private:
-            Registry &reg;
-            entity *ents = nullptr;
-            size_t index = 0;
-            size_t end_index = 0;
+            Registry &reg_;
+            entity *ents_ = nullptr;
+            size_t index_ = 0;
+            size_t end_index_ = 0;
 
             bool has_all_components(entity ent) {
-                return (reg.has_component<Components>(ents[index]) && ...);
+                return (reg_.has_component<Components>(ents_[index_]) && ...);
             }
         };
 
     public:
         typedef Iterator iterator;
 
-        ComponentView(Registry &reg) : reg(reg) {}
+        ComponentView(Registry &reg) : reg_(reg) {}
 
         iterator begin() {
             auto &smallest_storage = find_smallest_storage();
-            return iterator(reg, smallest_storage.assoc_entities.data(), 0,
+            return iterator(reg_, smallest_storage.assoc_entities.data(), 0,
                             smallest_storage.size());
         }
 
         iterator end() {
             auto &smallest_storage = find_smallest_storage();
-            return iterator(reg, smallest_storage.assoc_entities.data(),
+            return iterator(reg_, smallest_storage.assoc_entities.data(),
                             smallest_storage.size(), smallest_storage.size());
         }
 
     private:
-        Registry &reg;
+        Registry &reg_;
 
         detail::ComponentStorage &find_smallest_storage() {
             return std::min(
-                {std::ref(reg.get_component_storage<Components>())...},
+                {std::ref(reg_.get_component_storage<Components>())...},
                 [](auto &a, auto &b) {
                     return a.get().size() < b.get().size();
                 });
